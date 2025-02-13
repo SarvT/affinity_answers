@@ -1,0 +1,114 @@
+Test Case 1: Valid Address - Gurgaon
+
+    Input: "Sector 21, HUDA Market, Gurgaon, Haryana 122001"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 2: Valid Address - Mumbai
+
+    Input: "Powai, IIT Bombay, Mumbai, Maharashtra 400076"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 3: Valid Address - Bangalore
+
+    Input: "Whitefield, ITPL Road, Bangalore, Karnataka 560066"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 4: Invalid PIN Code - Kolkata
+
+    Input: "Garia, Naktala, Kolkata, West Bengal 700999"
+    Expected Output: "Invalid PIN code: No data found"
+    Actual Output: "Invalid PIN code: No data found"
+    Result:  PASS
+
+Test Case 5: Missing PIN Code - Pune
+
+    Input: "MG Road, Pune, Maharashtra"
+    Expected Output: "Invalid address: No PIN code found"
+    Actual Output: "Invalid address: No PIN code found"
+    Result:  PASS
+
+Test Case 6: Valid Address - Mumbai
+
+    Input: "Bandra West, Mumbai, Maharashtra 400050"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 7: PIN Code and Locality Mismatch - Lucknow
+
+    Input: "Indira Nagar, Lucknow, Uttar Pradesh 110001"
+    Expected Output: "Invalid address: Post office/locality doesn't match PIN code"
+    Actual Output: "Invalid address: Expected state Delhi"
+    Result:  FAIL (Mismatch in error message)
+
+Test Case 8: Valid Address - Bangalore
+
+    Input: "BTM Layout, Bangalore, Karnataka 560029"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 9: Short Address - Delhi
+
+    Input: "Delhi 110001"
+    Expected Output: "Invalid address: Address too short"
+    Actual Output: "Valid address"
+    Result:  FAIL (Short address should be invalid)
+
+Test Case 10: Non-Numeric PIN Code - Delhi
+
+    Input: "Connaught Place, New Delhi, Delhi ABC123"
+    Expected Output: "Invalid address: No PIN code found"
+    Actual Output: "Invalid address: No PIN code found"
+    Result:  PASS
+
+Test Case 11: PIN Code Without Spaces - Pune
+
+    Input: "Phase1HinjewadiITParkPuneMaharashtra411057"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 12: Valid Address - Gurgaon
+
+    Input: "AGARA, Gurgaon, Haryana 122002"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 13: Valid Address - Bangalore
+
+    Input: "Koramangala, 1st Block, Bangalore, Karnataka 560034"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 14: Valid Address - Delhi
+
+    Input: "Hauz Khas, Deer Park, South Delhi, Delhi 110016"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Test Case 15: Fuzzy Matching - Hyderabad
+
+    Input: "Jubli Hills, Hyderabad, Telangana 500033"
+    Expected Output: "Valid address"
+    Actual Output: "Valid address"
+    Result:  PASS
+
+Summary of Test Results
+
+ Pass: 13
+ Fail: 2
+
+
+Failures:
+    Test Case 7: Error message mismatch for "Indira Nagar, Lucknow, Uttar Pradesh 110001"
+    Test Case 9: "Delhi 110001" should be invalid, but it was marked valid
