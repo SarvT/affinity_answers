@@ -52,10 +52,3 @@ BestDelivery Courier Company faces incorrect PIN codes in parcel addresses, lead
 - TSV is **lightweight, easy to process, and can be imported into databases directly**.
 
 ---
-
-## 🛠️ Setup & Execution
-
-### 📌 Running Address Validation
-1. Install dependencies (if required):  
-   ```bash
-   pip install requests
