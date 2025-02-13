@@ -3,62 +3,78 @@ import re
 from thefuzz import fuzz, process
 
 def extract_pincode(address):
+    """Extract 6-digit PIN code from address"""
+    # Handle addresses without spaces
+    if not ' ' in address:
+        match = re.search(r'\d{6}', address)
+        return match.group() if match else None
+    
     match = re.search(r'\b\d{6}\b', address)
     return match.group() if match else None
 
-def extract_post_office(address):
-    """Extract potential post office names from address"""
-    keywords = ['colony', 'nagar', 'bank']
-    parts = [part.strip() for part in address.lower().split(',')]
-    post_offices = []
-    
-    for part in parts:
-        # Check if part contains any keywords
-        if any(keyword in part.lower() for keyword in keywords):
-            post_offices.append(part.strip())
-    
-    return post_offices
-
 def normalize_address(address):
     """Normalize address by handling common variations"""
+    # Handle addresses without spaces
+    if not ' ' in address:
+        # Add space before capital letters
+        address = re.sub(r'([a-z])([A-Z])', r'\1 \2', address)
+    
     address = address.lower()
+    # City name variations
     address = re.sub(r'\bbengaluru\b', 'bangalore', address)
+    address = re.sub(r'\bgurgaon\b', 'gurugram', address)
+    address = re.sub(r'\bbombay\b', 'mumbai', address)
+    # Common abbreviations
     address = re.sub(r'\brd\b', 'road', address)
     address = re.sub(r'\bst\b', 'street', address)
+    address = re.sub(r'\bapt\b', 'apartment', address)
     return address
 
 def get_pincode_details(pincode):
-    """Get details from pincode API"""
+    """Get details from pincode API with error handling"""
     try:
-        response = requests.get(f"https://api.postalpincode.in/pincode/{pincode}")
+        response = requests.get(f"https://api.postalpincode.in/pincode/{pincode}", timeout=5)
         data = response.json()
         if data and data[0]['Status'] == "Success":
             return data[0]['PostOffice']
         return None
-    except:
+    except (requests.RequestException, ValueError, KeyError, IndexError):
         return None
 
-def get_post_office_details(post_office):
-    """Get details from post office API"""
-    try:
-        response = requests.get(f"https://api.postalpincode.in/postoffice/{post_office}")
-        data = response.json()
-        if data and data[0]['Status'] == "Success":
-            return data[0]['PostOffice']
-        return None
-    except:
-        return None
-
-def fuzzy_match_post_office(post_office_name, valid_names, threshold=70):
-    """Check if post office name matches any valid names using fuzzy matching"""
-    if not valid_names:
-        return False
-    best_match, score = process.extractOne(post_office_name, valid_names, scorer=fuzz.token_sort_ratio)
-    return score >= threshold
+def extract_locality(address):
+    """Extract locality information from address using common Indian address patterns"""
+    # Split address into parts
+    if not ' ' in address:
+        address = re.sub(r'([a-z])([A-Z])', r'\1 \2', address)
+    
+    parts = [part.strip() for part in re.split(r'[,\s]+', address) if part.strip()]
+    
+    # Common locality indicators
+    locality_indicators = [
+        'sector', 'phase', 'block', 'layout', 'nagar', 'colony', 'garden', 'park',
+        'complex', 'apartment', 'tower', 'hills', 'estate', 'market', 'place',
+        'road', 'street', 'lane', 'area', 'district', 'zone', 'extension', 'enclave'
+    ]
+    
+    localities = []
+    for i, part in enumerate(parts):
+        part_lower = part.lower()
+        # Check if part contains locality indicators
+        if any(indicator in part_lower for indicator in locality_indicators):
+            # Include the previous part if it exists (e.g., "DLF Phase")
+            if i > 0:
+                localities.append(f"{parts[i-1]} {part}")
+            else:
+                localities.append(part)
+        # Check for standalone names that are likely localities
+        elif len(part) > 3 and part.isalpha():
+            localities.append(part)
+    
+    return localities
 
 def validate_address(address):
-    """Validate address using both PIN code and Post Office APIs"""
-    if not address or len(address.strip()) < 10:
+    """Validate Indian addresses"""
+    if not address or len(address.strip()) < 5:
         return "Invalid address: Address too short"
 
     # Extract PIN code
@@ -71,57 +87,81 @@ def validate_address(address):
     if not pin_details:
         return "Invalid PIN code: No data found"
 
-    # Extract and validate post office names
-    post_offices = extract_post_office(address)
-    if not post_offices:
-        return "Invalid address: No post office or locality found"
-
-    # Normalize address for comparison
+    # Normalize address
     normalized_address = normalize_address(address)
+    
+    # Extract localities
+    localities = extract_locality(address)
+    if not localities:
+        localities = [part.strip() for part in address.split(',') if len(part.strip()) > 3]
 
-    # Collect valid information from PIN code API
+    # Get valid information from PIN code
     valid_state = pin_details[0]['State'].lower()
     valid_district = pin_details[0]['District'].lower()
-    valid_areas = {po['Name'].lower() for po in pin_details}
-    valid_regions = {po['Region'].lower() for po in pin_details}
     
-    # Validate state and district
-    if valid_state not in normalized_address:
-        return f"Invalid address: State mismatch. Expected {valid_state.title()}"
+    # Collect all valid areas from PIN code data
+    valid_areas = set()
+    for po in pin_details:
+        valid_areas.add(po['Name'].lower())
+        valid_areas.add(po['Region'].lower())
+        if po.get('Division'):
+            valid_areas.add(po['Division'].lower())
+        if po.get('Area'):
+            valid_areas.add(po['Area'].lower())
+
+    # State validation with flexible matching
+    state_found = False
+    if valid_state in normalized_address:
+        state_found = True
+    else:
+        # Handle special cases like "Delhi" vs "New Delhi"
+        if valid_state == "delhi" and ("delhi" in normalized_address or "new delhi" in normalized_address):
+            state_found = True
     
-    if valid_district not in normalized_address and 'bangalore' not in normalized_address:
-        return f"Invalid address: District mismatch. Expected {valid_district.title()}"
+    if not state_found:
+        return f"Invalid address: Expected state {valid_state.title()}"
 
-    # Cross-validate with post office API
-    post_office_validated = False
-    for po_name in post_offices:
-        po_details = get_post_office_details(po_name)
-        if po_details:
-            # Check if any returned post office matches the PIN code
-            for po in po_details:
-                if po['Pincode'] == pincode:
-                    post_office_validated = True
-                    break
-        
-        # If API validation fails, try fuzzy matching with known valid areas
-        if not post_office_validated:
-            if fuzzy_match_post_office(po_name, valid_areas) or fuzzy_match_post_office(po_name, valid_regions):
-                post_office_validated = True
+    # District/City validation with flexible matching
+    district_found = False
+    if valid_district in normalized_address:
+        district_found = True
+    else:
+        # Handle common city variations
+        common_cities = {
+            "delhi": ["new delhi", "south delhi", "north delhi"],
+            "mumbai": ["bombay"],
+            "bangalore": ["bengaluru"],
+            "gurugram": ["gurgaon"]
+        }
+        if valid_district.lower() in common_cities:
+            district_found = any(city in normalized_address for city in common_cities[valid_district.lower()])
+    
+    # Area/Locality validation
+    locality_found = False
+    for locality in localities:
+        # Direct match with valid areas
+        if locality.lower() in valid_areas:
+            locality_found = True
+            break
+        # Fuzzy match with valid areas
+        best_match, score = process.extractOne(locality.lower(), valid_areas, scorer=fuzz.token_sort_ratio)
+        if score >= 70:  # Threshold for fuzzy matching
+            locality_found = True
+            break
+    
+    if not locality_found:
+        # More lenient validation for major cities
+        major_cities = ["delhi", "mumbai", "bangalore", "kolkata", "chennai", "hyderabad", "pune", "gurugram"]
+        if any(city in normalized_address for city in major_cities):
+            locality_found = True
 
-    if not post_office_validated:
-        return "Invalid address: Post office/locality doesn't match PIN code"
-
-    # Additional validation for 560050
-    if pincode == '560050':
-        required_areas = ['banashankari', 'srinivasa nagar']
-        for area in required_areas:
-            if area not in normalized_address:
-                return f"Invalid address: Missing required area '{area.title()}' for 560050"
+    if not locality_found:
+        return "Address validated with PIN code but locality not recognized"
 
     return "Valid address"
 
 def test_addresses():
-    address = input("enter the address: ")
+    address=input("Enter the address: ")
     print(f"\nAddress: {address}")
     print(f"Validation: {validate_address(address)}")
 
